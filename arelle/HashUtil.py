@@ -12,7 +12,7 @@ from arelle import XmlUtil
 
 class Md5Sum:
     MAXMd5SUM = 0xffffffffffffffffffffffffffffffff
-    def __init__(self, initialValue=0):
+    def __init__(self, initialValue: int = 0) -> None:
         if isinstance(initialValue, int):
             self.value = initialValue & Md5Sum.MAXMd5SUM
         elif isinstance(initialValue, _STR_BASE): # includes Md5HexValue, unicode string, py2.7 string
@@ -20,26 +20,26 @@ class Md5Sum:
         else:
             raise ValueError("MD5Sum called with {} but must be an MD5Sum or hex number"
                              .format(initialValue.__class__.__name__))
-    def toHex(self):
+    def toHex(self) -> str:
         s = hex(self.value)[2:]
         if s.endswith('L'):
             return s[:-1]
         return s
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.toHex()
 
-    def __add__(self, other):
+    def __add__(self, other: int):
         if not isinstance(other, Md5Sum):
             other = Md5Sum(other)
         return Md5Sum(self.value + other.value)
 
-    def __eq__(self, other):
+    def __eq__(self, other: int):
         if not isinstance(other, Md5Sum):
             other = Md5Sum(other)
         return self.value == other.value
 
-    def __ne__(self, other):
+    def __ne__(self, other: int):
         return not (self.value == other.value)
 
 MD5SUM0 = Md5Sum()

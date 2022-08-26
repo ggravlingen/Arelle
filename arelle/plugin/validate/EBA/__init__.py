@@ -4,7 +4,8 @@ Created on Dec 12, 2013
 @author: Mark V Systems Limited
 (c) Copyright 2013 Mark V Systems Limited, All rights reserved.
 '''
-import os, sys, re
+from __future__ import annotations
+import os, sys
 from arelle import ModelDocument, XbrlConst, XmlUtil, UrlUtil, LeiUtil
 from arelle.HashUtil import Md5Sum
 from arelle.ModelDtsObject import ModelConcept
@@ -17,9 +18,15 @@ from arelle.ModelInstanceObject import ModelFact
 try:
     import regex as re
 except ImportError:
-    import re
+    import re  # type: ignore[no-redef]
 from lxml import etree
 from collections import defaultdict
+from arelle.typing import TypeGetText
+from arelle.DisclosureSystem import DisclosureSystem
+from typing import Any
+from arelle.ValidateXbrl import ValidateXbrl
+
+_: TypeGetText  # Handle gettext
 
 qnFIndicators = qname("{http://www.eurofiling.info/xbrl/ext/filing-indicators}find:fIndicators")
 qnFilingIndicator = qname("{http://www.eurofiling.info/xbrl/ext/filing-indicators}find:filingIndicator")
@@ -57,15 +64,15 @@ CANONICAL_PREFIXES = {
     "http://www.xbrl.org/2003/instance": "xbrli",
     "http://www.w3.org/1999/xlink": "xlink"}
 
-def dislosureSystemTypes(disclosureSystem, *args, **kwargs):
+def dislosureSystemTypes(disclosureSystem: DisclosureSystem, *args: Any, **kwargs: Any) -> tuple[tuple[str, str]]:
     # return ((disclosure system name, variable name), ...)
     return (("EBA", "EBA"),
             ("EIOPA", "EIOPA"))
 
-def disclosureSystemConfigURL(disclosureSystem, *args, **kwargs):
+def disclosureSystemConfigURL(disclosureSystem: DisclosureSystem, *args: Any, **kwargs: Any) -> str:
     return os.path.join(os.path.dirname(__file__), "config.xml")
 
-def validateSetup(val, parameters=None, *args, **kwargs):
+def validateSetup(val: ValidateXbrl, parameters: dict[Any, Any] | None=None, *args: Any, **kwargs: Any) -> None:
     val.validateEBA = val.validateDisclosureSystem and getattr(val.disclosureSystem, "EBA", False)
     val.validateEIOPA = val.validateDisclosureSystem and getattr(val.disclosureSystem, "EIOPA", False)
     if not (val.validateEBA or val.validateEIOPA):
@@ -157,17 +164,17 @@ def validateSetup(val, parameters=None, *args, **kwargs):
         if hasattr(unit, "_batchChecked"):
             unit._batchChecked = False
 
-def prefixUsed(val, ns, prefix):
+def prefixUsed(val: ValidateXbrl, ns, prefix) -> None:
     val.namespacePrefixesUsed[ns].add(prefix)
     for _prefix in val.namespacePrefixesUsed[ns]:
         val.prefixesUnused.discard(_prefix)
 
-def validateStreamingFacts(val, factsToCheck, *args, **kwargs):
+def validateStreamingFacts(val: ValidateXbrl, factsToCheck, *args: Any, **kwargs: Any) -> bool:
     if not (val.validateEBA or val.validateEIOPA):
         return True
     validateFacts(val, factsToCheck)
 
-def validateFacts(val, factsToCheck):
+def validateFacts(val: ValidateXbrl, factsToCheck) -> None:
     # may be called in streaming batches or all at end (final) if not streaming
 
     modelXbrl = val.modelXbrl
@@ -523,15 +530,15 @@ def validateFacts(val, factsToCheck):
                     _("XML comment found, all relevant business data MUST only be contained in contexts, units, schemaRef and facts: %(comment)s"),
                     modelObject=modelDocument, comment=elt.text)
 
-def validateNonStreamingFinish(val, *args, **kwargs):
+def validateNonStreamingFinish(val: ValidateXbrl, *args: Any, **kwargs: Any) -> None:
     # non-streaming EBA checks, ignore when streaming (first all from ValidateXbrl.py)
     if not getattr(val.modelXbrl, "isStreamingMode", False):
         final(val)
 
-def validateStreamingFinish(val, *args, **kwargs):
+def validateStreamingFinish(val: ValidateXbrl, *args: Any, **kwargs: Any) -> None:
     final(val)  # always finish validation when streaming
 
-def final(val):
+def final(val: ValidateXbrl) -> None:
     if not (val.validateEBA or val.validateEIOPA):
         return
 

@@ -62,10 +62,41 @@ class ValidateXbrl:
     hasExtensionLbl: bool
     hasExtensionPre: bool
     hasExtensionSchema: bool
+    isEIOPAfullVersion: bool
+    isEIOPA_2_0_1: bool
     unconsolidated: bool
     validateESEFplugin: bool
     priorFormulaOptionsRunIDs: str | None
     primaryItems: set
+
+    prefixNamespace: Any
+    namespacePrefix: Any
+    idObjects: Any
+    typedDomainElements: Any
+    utrValidator: Any
+    firstFact: Any
+    footnotesRelationshipSet: Any
+    prefixesUnused: Any
+    reportingCurrency: Any
+    validateEBA: Any
+    validateEIOPA: Any
+    unusedUnitIDs: Any
+    cntxEntities: Any
+    qnDimAF: Any
+    qnDimOC: Any
+    qnCAx1: Any
+    unusedCntxIDs: Any
+    numFilingIndicatorTuples: Any
+    filingIndicators: Any
+    currenciesUsed: Any
+    namespacePrefixesUsed: Any
+    cntxDates: Any
+    qnReportedCurrency: Any
+    firstFactObjectIndex: Any
+    typedDomainQnames: Any
+    eba_qnDimCCA: Any
+    eba_qnDimCUS: Any
+    eba_qnCAx1: Any
 
     def __init__(self, testModelXbrl):
         self.testModelXbrl = testModelXbrl
