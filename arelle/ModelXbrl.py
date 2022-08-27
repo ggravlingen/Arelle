@@ -451,7 +451,7 @@ class ModelXbrl:
                 subsGrpMdlObj = subsGrpMdlObj.substitutionGroup
         return subsGrpMatchTable.get(None)
 
-    def isInSubstitutionGroup(self, elementQname, subsGrpQnames):
+    def isInSubstitutionGroup(self, elementQname, subsGrpQnames) -> bool:
         """Determine if element is in substitution group(s)
 
         Used by ModelObjectFactory to return Class type for new ModelObject subclass creation, and isInSubstitutionGroup
@@ -1223,7 +1223,7 @@ class ModelXbrl:
             """@messageCatalog=[]"""
             logger.log(numericLevel, *logArgs, exc_info=args.get("exc_info"), extra=extras)
 
-    def error(self, codes, msg, **args) -> None:
+    def error(self, codes: str | list[str], msg: str, **args) -> None:
         """Logs a message as info, by code, logging-system message text (using %(name)s named arguments
         to compose string by locale language), resolving model object references (such as qname),
         to prevent non-dereferencable memory usage.  Supports logging system parameters, and
