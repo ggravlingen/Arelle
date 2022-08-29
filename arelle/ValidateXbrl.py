@@ -9,13 +9,14 @@ try:
     import regex as re
 except ImportError:
     import re  # type: ignore[no-redef]
-from typing import Any
-from arelle import (ModelDocument, XmlUtil, XbrlUtil, XbrlConst,
+from typing import Any, cast
+from arelle import (XmlUtil, XbrlUtil, XbrlConst,
                 ValidateXbrlCalcs, ValidateXbrlDimensions, ValidateXbrlDTS, ValidateFormula, ValidateUtr)
+from arelle.ModelDocument import ModelDocument, Type as ModelDocumentType
 from arelle import FunctionIxt
 from arelle.ModelObject import ModelObject
 from arelle.ModelDtsObject import ModelConcept
-from arelle.ModelInstanceObject import ModelInlineFact
+from arelle.ModelInstanceObject import ModelContext, ModelDimensionValue, ModelInlineFact
 from arelle.ModelValue import qname
 from arelle.ModelXbrl import ModelXbrl
 from arelle.PluginManager import pluginClassMethods
@@ -30,11 +31,14 @@ from arelle.ModelRelationshipSet import ModelRelationshipSet
 from arelle.ModelFormulaObject import ModelConceptName
 from arelle.ModelDtsObject import ModelRelationship
 from arelle.ModelFormulaObject import ModelCustomFunctionSignature
+from arelle.ModelXbrl import ModelXbrl
+from arelle.XmlValidateParticles import validateUniqueParticleAttribution
+from arelle.ModelDtsObject import ModelLink
+from arelle.ModelValue import QName
+from lxml.etree import _Element
 
 _: TypeGetText  # Handle gettext
 
-
-validateUniqueParticleAttribution = None # dynamic import
 
 arcNamesTo21Resource = {"labelArc","referenceArc"}
 xlinkTypeValues = {None, "simple", "extended", "locator", "arc", "resource", "title", "none"}
@@ -69,12 +73,19 @@ class ValidateXbrl:
     hasExtensionLbl: bool
     hasExtensionPre: bool
     hasExtensionSchema: bool
+    ixdsDocs: list[ModelDocument]
+    ixdsFootnotes: dict[str, Any]
+    ixdsHeaderCount: int
+    ixdsReferences: dict[str, Any]
+    ixdsRelationships: list[dict[Any, Any]]
+    ixdsRoleRefURIs: dict[Any, Any]
+    ixdsArcroleRefURIs: dict[Any, Any]
     unconsolidated: bool
     validateESEFplugin: bool
     priorFormulaOptionsRunIDs: str | None
     primaryItems: set[Any]
 
-    def __init__(self, testModelXbrl) -> None:
+    def __init__(self, testModelXbrl: ModelXbrl) -> None:
         self.testModelXbrl = testModelXbrl
 
     def close(self, reusable: bool = True) -> None:
@@ -84,7 +95,7 @@ class ValidateXbrl:
         if reusable:
             self.testModelXbrl = testModelXbrl
 
-    def validate(self, modelXbrl, parameters=None) -> None:
+    def validate(self, modelXbrl: ModelXbrl, parameters: dict[Any, Any] | None = None) -> None:
         self.parameters = parameters
         self.precisionPattern = re.compile("^([0-9]+|INF)$")
         self.decimalsPattern = re.compile("^(-?[0-9]+|INF)$")
@@ -117,8 +128,8 @@ class ValidateXbrl:
         modelXbrl.profileStat(None)
         modelXbrl.modelManager.showStatus(_("validating links"))
         modelLinks = set()
-        self.remoteResourceLocElements = set()
-        self.genericArcArcroles = set()
+        self.remoteResourceLocElements: set[str] = set()
+        self.genericArcArcroles: set[str] = set()
         for baseSetExtLinks in modelXbrl.baseSets.values():
             for baseSetExtLink in baseSetExtLinks:
                 modelLinks.add(baseSetExtLink)    # ext links are unique (no dups)
@@ -159,16 +170,26 @@ class ValidateXbrl:
                 fromRelationships = relsSet.fromModelObjects()
                 for relFrom, rels in fromRelationships.items():
                     cycleFound = self.fwdCycle(relsSet, rels, noUndirected, {relFrom})
-                    if cycleFound is not None:
+                    if cycleFound is not None and isinstance(cycleFound[1], ModelRelationship):
                         pathEndsAt = len(cycleFound)  # consistently find start of path
+
                         loopedModelObject = cycleFound[1].toModelObject
                         for i, rel in enumerate(cycleFound[2:]):
+                            if not isinstance(rel, ModelRelationship):
+                                continue
+
                             if rel.fromModelObject == loopedModelObject:
                                 pathEndsAt = 3 + i # don't report extra path elements before loop
                                 break
+
+                        # Note 2022-08-28: untangling this while adding type hints feels risky, ignoring for now
                         path = str(loopedModelObject.qname) + " " + " - ".join(
-                            "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname)
+                            "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname) # type: ignore[union-attr]
                             for rel in reversed(cycleFound[1:pathEndsAt]))
+
+                        if specSect is None:
+                            break
+
                         modelXbrl.error(specSect,
                             _("Relationships have a %(cycle)s cycle in arcrole %(arcrole)s \nlink role %(linkrole)s \nlink %(linkname)s, \narc %(arcname)s, \npath %(path)s"),
                             modelObject=cycleFound[1:pathEndsAt], cycle=cycleFound[0], path=path,
@@ -186,10 +207,10 @@ class ValidateXbrl:
                     toConcept = modelRel.toModelObject
                     if fromConcept is not None and toConcept is not None:
                         if weight == 0:
-                            modelXbrl.error("xbrl.5.2.5.2.1:zeroWeight",
-                                _("Calculation relationship has zero weight from %(source)s to %(target)s in link role %(linkrole)s"),
+                            modelXbrl.error(codes="xbrl.5.2.5.2.1:zeroWeight",
+                                msg=_("Calculation relationship has zero weight from %(source)s to %(target)s in link role %(linkrole)s"),
                                 modelObject=modelRel,
-                                source=fromConcept.qname, target=toConcept.qname, linkrole=ELR),
+                                source=fromConcept.qname, target=toConcept.qname, linkrole=ELR)
                         fromBalance = fromConcept.balance
                         toBalance = toConcept.balance
                         if fromBalance and toBalance:
@@ -245,7 +266,7 @@ class ValidateXbrl:
                         if fromBalance and toBalance:
                             if fromBalance and toBalance and fromBalance != toBalance:
                                 modelXbrl.error("xbrl.5.2.6.2.2:essenceAliasBalance",
-                                    _("Essence-alias relationship from %(source)s to %(target)s in link role %(linkrole)s has different balances")).format(
+                                    _("Essence-alias relationship from %(source)s to %(target)s in link role %(linkrole)s has different balances"),
                                     modelObject=modelRel,
                                     source=fromConcept.qname, target=toConcept.qname, linkrole=ELR)
             elif modelXbrl.hasXDT and arcrole.startswith(XbrlConst.dimStartsWith):
@@ -257,7 +278,7 @@ class ValidateXbrl:
 
         # instance checks
         modelXbrl.modelManager.showStatus(_("validating instance"))
-        if modelXbrl.modelDocument.type in (ModelDocument.Type.INSTANCE, ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET):
+        if modelXbrl.modelDocument is not None and modelXbrl.modelDocument.type in (ModelDocumentType.INSTANCE, ModelDocumentType.INLINEXBRL, ModelDocumentType.INLINEXBRLDOCUMENTSET):
             self.checkFacts(modelXbrl.facts)
             self.checkContexts(self.modelXbrl.contexts.values())
             self.checkUnits(self.modelXbrl.units.values())
@@ -389,17 +410,15 @@ class ValidateXbrl:
         modelXbrl.profileStat() # reset after plugins
 
         modelXbrl.modelManager.showStatus(_("validating DTS"))
-        self.DTSreferenceResourceIDs = {}
-        checkedModelDocuments = set()
+        self.DTSreferenceResourceIDs: dict[str, Any] = {}
+        checkedModelDocuments: set[ModelDocument] = set()
+        assert modelXbrl.modelDocument is not None
         ValidateXbrlDTS.checkDTS(self, modelXbrl.modelDocument, checkedModelDocuments)
         # ARELLE-220: check imported documents that aren't DTS discovered
         for importedModelDocument in (set(modelXbrl.urlDocs.values()) - checkedModelDocuments):
             ValidateXbrlDTS.checkDTS(self, importedModelDocument, checkedModelDocuments)
         del checkedModelDocuments, self.DTSreferenceResourceIDs
 
-        global validateUniqueParticleAttribution
-        if validateUniqueParticleAttribution is None:
-            from arelle.XmlValidateParticles import validateUniqueParticleAttribution
         for modelType in modelXbrl.qnameTypes.values():
             validateUniqueParticleAttribution(modelXbrl, modelType.particlesList, modelType)
         modelXbrl.profileStat(_("validateDTS"))
@@ -417,7 +436,10 @@ class ValidateXbrl:
 
         if self.validateIXDS:
             modelXbrl.modelManager.showStatus(_("Validating inline document set"))
-            _ixNS = modelXbrl.modelDocument.ixNS
+            if modelXbrl.modelDocument is not None:
+                _ixNS = modelXbrl.modelDocument.ixNS
+            else:
+                _ixNS = None
             ixdsIdObjects = defaultdict(list)
             for ixdsDoc in self.ixdsDocs:
                 for idObject in ixdsDoc.idObjects.values():
@@ -552,7 +574,7 @@ class ValidateXbrl:
 
         modelXbrl.modelManager.showStatus(_("ready"), 2000)
 
-    def checkLinks(self, modelLinks) -> None:
+    def checkLinks(self, modelLinks: set[ModelLink]) -> None:
         for modelLink in modelLinks:
             fromToArcs = {}
             locLabels = {}
@@ -590,7 +612,8 @@ class ValidateXbrl:
                                 resourceArcTos.append((toLabel, arcElt.get("use"), arcElt))
                         elif self.isGenericArc(arcElt):
                             arcrole = arcElt.get("{http://www.w3.org/1999/xlink}arcrole")
-                            self.genericArcArcroles.add(arcrole)
+                            if arcrole is not None:
+                                self.genericArcArcroles.add(arcrole)
                             if arcrole in (XbrlConst.elementLabel, XbrlConst.elementReference):
                                 resourceArcTos.append((toLabel, arcrole, arcElt))
                     # values of type (not needed for validating parsers)
@@ -630,8 +653,8 @@ class ValidateXbrl:
                             linkrole=modelLink.role, xlinkLabelFrom=fromLabel, xlinkLabelTo=toLabel)
                     if not((toLabel in resourceLabels and resourceLabels[toLabel] is not None
                               and resourceLabels[toLabel].qname == XbrlConst.qnLinkFootnote) or
-                           (toLabel in locLabels and locLabels[toLabel].dereference() is not None
-                              and locLabels[toLabel].dereference().qname == XbrlConst.qnLinkFootnote)):
+                           (toLabel in locLabels and locLabels[toLabel].dereference() is not None # type: ignore[attr-defined]
+                              and locLabels[toLabel].dereference().qname == XbrlConst.qnLinkFootnote)): # type: ignore[attr-defined]
                         self.modelXbrl.error("xbrl.4.11.1.3.1:factFootnoteArcTo",
                             _("Footnote arc in extended link %(linkrole)s from %(xlinkLabelFrom)s to %(xlinkLabelTo)s \"to\" is not a footnote resource"),
                             modelObject=arcElt,
@@ -641,7 +664,7 @@ class ValidateXbrl:
                 resourceArcToLabel, resourceArcUse, arcElt = resourceArcTo
                 if resourceArcToLabel in locLabels:
                     toLabel = locLabels[resourceArcToLabel]
-                    if resourceArcUse == "prohibited":
+                    if resourceArcUse == "prohibited" and toLabel is not None:
                         self.remoteResourceLocElements.add(toLabel)
                     else:
                         self.modelXbrl.error("xbrl.5.2.2.3:labelArcRemoteResource",
@@ -666,9 +689,9 @@ class ValidateXbrl:
                                 modelObject=arcElt,
                                 linkrole=modelLink.role,
                                 xlinkLabel=resourceArcToLabel)
-            resourceArcTos = None # dereference arcs
+            resourceArcTos.clear()  # dereference arcs
 
-    def checkFacts(self, facts, inTuple=None) -> None:  # do in document order
+    def checkFacts(self, facts: list[ModelInlineFact], inTuple: dict[Any, Any] | None = None) -> None:  # do in document order
         for f in facts:
             concept = f.concept
             if concept is not None:
@@ -755,7 +778,7 @@ class ValidateXbrl:
                                     _("Fact %(fact)s context %(contextID)s is a fraction with invalid denominator %(denominator)"),
                                     modelObject=f, fact=f.qname, contextID=f.contextID, denominator=denominator)
                     else:
-                        if self.modelXbrl.modelDocument.type not in (ModelDocument.Type.INLINEXBRL, ModelDocument.Type.INLINEXBRLDOCUMENTSET):
+                        if self.modelXbrl.modelDocument is not None and self.modelXbrl.modelDocument.type not in (ModelDocumentType.INLINEXBRL, ModelDocumentType.INLINEXBRLDOCUMENTSET):
                             for child in f.iterchildren():
                                 if isinstance(child,ModelObject):
                                     self.modelXbrl.error("xbrl.5.1.1:itemMixedContent",
@@ -839,8 +862,8 @@ class ValidateXbrl:
                     for attrQname, attrValue in XbrlUtil.attributes(self.modelXbrl, f):
                         if attrQname.namespaceURI in (XbrlConst.xbrli, XbrlConst.link, XbrlConst.xlink, XbrlConst.xl):
                             self.modelXbrl.error("xbrl.4.9:tupleAttribute",
-                                _("Fact %(fact)s is a tuple and must not have attribute in this namespace %(attribute)s",
-                                fact=f.qname))
+                                _("Fact %(fact)s is a tuple and must not have attribute in this namespace"),
+                                fact=f.qname)
                 else:
                     self.modelXbrl.error("xbrl.4.6:notItemOrTuple",
                         _("Fact %(fact)s must be an item or tuple"),
@@ -858,21 +881,21 @@ class ValidateXbrl:
                     self.checkIxTupleContent(f, inTuple)
             if f.modelTupleFacts:
                 self.checkFacts(f.modelTupleFacts, inTuple=inTuple)
-            if isinstance(f, ModelInlineFact) and (f.isTuple or f.tupleID):
+            if isinstance(f, ModelInlineFact) and (f.isTuple or f.tupleID) and inTuple is not None:
                 del inTuple[f.qname]
 
             # uncomment if anybody uses this
             #for pluginXbrlMethod in pluginClassMethods("Validate.XBRL.Fact"):
             #    pluginXbrlMethod(self, f)
 
-    def checkFactsDimensions(self, facts) -> None: # check fact dimensions in document order
+    def checkFactsDimensions(self, facts: list[ModelInlineFact]) -> None: # check fact dimensions in document order
         for f in facts:
             if f.concept is not None and (f.concept.isItem and f.context is not None):
                 ValidateXbrlDimensions.checkFact(self, f)
             elif f.modelTupleFacts:
                 self.checkFactsDimensions(f.modelTupleFacts)
 
-    def checkIxTupleContent(self, tf, parentTuples) -> None:
+    def checkIxTupleContent(self, tf: ModelInlineFact, parentTuples: dict[Any, Any]) -> None:
         if tf.isNil:
             if tf.modelTupleFacts:
                 self.modelXbrl.error("ix:tupleNilContent",
@@ -906,7 +929,7 @@ class ValidateXbrl:
                     _("Inline XBRL at order %(order)s has non-matching content %(value)s"),
                     modelObject=(prevTupleFact, f), order=f.order, value=prevTupleFact.textValue.strip())
 
-    def checkContexts(self, contexts) -> None:
+    def checkContexts(self, contexts: list[ModelContext]) -> None:
         for cntx in contexts:
             if cntx.isStartEndPeriod:
                 try: # if no datetime value would have been a schema error at loading time
@@ -996,7 +1019,7 @@ class ValidateXbrl:
                     return foundCycle
         return None
 
-    #-> list[str, Any] | None:
+    # Todo
     def revCycle(self, relsSet: ModelRelationshipSet, toConcept: ModelConcept, turnbackRel: ModelRelationship, fromConcepts: set[ModelConcept | ModelCustomFunctionSignature]) :
         for rel in relsSet.toModelObject(toConcept):
             if not rel.isIdenticalTo(turnbackRel):
@@ -1018,10 +1041,17 @@ class ValidateXbrl:
                 fromConcepts.discard(relFrom)
         return None
 
-    def segmentScenario(self, element, contextId, name, sect, topLevel=True) -> None:
+    def segmentScenario(self, element: ModelObject | ModelDimensionValue | None, contextId: str, name: str, sect: str, topLevel: bool = True) -> None:
         if topLevel:
             if element is None:
                 return  # nothing to check
+
+        # Note 2022-08-28: all of the code below expects that element is not None.
+        # For typing purposes, we therefore guard against that here by returning
+        # if element is None.
+        if element is None:
+            return
+
         else:
             if element.namespaceURI == XbrlConst.xbrli:
                 self.modelXbrl.error("xbrl.{0}:{1}XbrliElement".format(sect,name),
@@ -1046,25 +1076,28 @@ class ValidateXbrl:
                 modelObject=element, contextID=contextId, contextElement=name,
                 messageCodes=("xbrl.4.7.3.2:segmentEmpty", "xbrl.4.7.4:scenarioEmpty"))
 
-    def isGenericObject(self, elt, genQname) -> bool:
-        return self.modelXbrl.isInSubstitutionGroup(elt.qname,genQname)
+    def isGenericObject(self, elt: ModelObject | _Element | None, genQname: QName | None) -> bool:
+        # 2022-08-28: note for type ignore: _Element, which is passed by isGenericResource below, has no qname.
+        # isGenericResource is currently used in ValidateXbrlDTS. We should revisit this when adding type hints for
+        # ValidateXbrlDTS.
+        return self.modelXbrl.isInSubstitutionGroup(elt.qname, genQname)  # type: ignore[union-attr]
 
-    def isGenericLink(self, elt) -> bool:
+    def isGenericLink(self, elt: ModelObject) -> bool:
         return self.isGenericObject(elt, XbrlConst.qnGenLink)
 
-    def isGenericArc(self, elt) -> bool:
+    def isGenericArc(self, elt: ModelObject) -> bool:
         return self.isGenericObject(elt, XbrlConst.qnGenArc)
 
-    def isGenericResource(self, elt) -> bool:
+    def isGenericResource(self, elt: ModelObject) -> bool:
         return self.isGenericObject(elt.getparent(), XbrlConst.qnGenLink)
 
-    def isGenericLabel(self, elt) -> bool:
+    def isGenericLabel(self, elt: ModelObject) -> bool:
         return self.isGenericObject(elt, XbrlConst.qnGenLabel)
 
-    def isGenericReference(self, elt) -> bool:
+    def isGenericReference(self, elt: ModelObject) -> bool:
         return self.isGenericObject(elt, XbrlConst.qnGenReference)
 
-    def executeCallTest(self, modelXbrl: ModelXbrl, name: str, callTuple, testTuple) -> None:
+    def executeCallTest(self, modelXbrl: ModelXbrl, name: str, callTuple: tuple[Any, ...], testTuple: tuple[Any, ...]) -> None:
         self.modelXbrl = modelXbrl
         ValidateFormula.executeCallTest(self, name, callTuple, testTuple)
 
