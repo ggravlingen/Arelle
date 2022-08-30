@@ -1100,4 +1100,3 @@ class ValidateXbrl:
     def executeCallTest(self, modelXbrl: ModelXbrl, name: str, callTuple: tuple[Any, ...], testTuple: tuple[Any, ...]) -> None:
         self.modelXbrl = modelXbrl
         ValidateFormula.executeCallTest(self, name, callTuple, testTuple)
-
