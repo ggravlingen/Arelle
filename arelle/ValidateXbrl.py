@@ -7,7 +7,7 @@ Created on Oct 17, 2010
 from __future__ import annotations
 import regex as re
 from typing import Any, ValuesView, cast
-from arelle import (XmlUtil, XbrlUtil, XbrlConst,
+from arelle import (ModelDocument, XmlUtil, XbrlUtil, XbrlConst,
                 ValidateXbrlCalcs, ValidateXbrlDimensions, ValidateXbrlDTS, ValidateFormula, ValidateUtr)
 from arelle.ModelDocument import ModelDocument, Type as ModelDocumentType
 from arelle import FunctionIxt
