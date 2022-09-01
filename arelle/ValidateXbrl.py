@@ -7,7 +7,7 @@ Created on Oct 17, 2010
 from __future__ import annotations
 import regex as re
 from typing import Any, ValuesView, cast
-from arelle import (ModelDocument, XmlUtil, XbrlUtil, XbrlConst,
+from arelle import (XmlUtil, XbrlUtil, XbrlConst,
                 ValidateXbrlCalcs, ValidateXbrlDimensions, ValidateXbrlDTS, ValidateFormula, ValidateUtr)
 from arelle.ModelDocument import ModelDocument, Type as ModelDocumentType
 from arelle import FunctionIxt
@@ -25,7 +25,6 @@ from arelle.XmlValidate import VALID
 from collections import defaultdict
 from arelle.typing import TypeGetText
 from arelle.ModelRelationshipSet import ModelRelationshipSet
-from arelle.ModelFormulaObject import ModelConceptName
 from arelle.ModelDtsObject import ModelRelationship
 from arelle.ModelFormulaObject import ModelCustomFunctionSignature
 from arelle.ModelXbrl import ModelXbrl
