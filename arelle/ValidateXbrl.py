@@ -5,11 +5,8 @@ Created on Oct 17, 2010
 (c) Copyright 2010 Mark V Systems Limited, All rights reserved.
 '''
 from __future__ import annotations
-try:
-    import regex as re
-except ImportError:
-    import re  # type: ignore[no-redef]
-from typing import Any, cast
+import regex as re
+from typing import Any, ValuesView, cast
 from arelle import (XmlUtil, XbrlUtil, XbrlConst,
                 ValidateXbrlCalcs, ValidateXbrlDimensions, ValidateXbrlDTS, ValidateFormula, ValidateUtr)
 from arelle.ModelDocument import ModelDocument, Type as ModelDocumentType
@@ -36,6 +33,7 @@ from arelle.XmlValidateParticles import validateUniqueParticleAttribution
 from arelle.ModelDtsObject import ModelLink
 from arelle.ModelValue import QName
 from lxml.etree import _Element
+from arelle.ModelInstanceObject import ModelUnit
 
 _: TypeGetText  # Handle gettext
 
@@ -663,16 +661,19 @@ class ValidateXbrl:
             for resourceArcTo in resourceArcTos:
                 resourceArcToLabel, resourceArcUse, arcElt = resourceArcTo
                 if resourceArcToLabel in locLabels:
-                    toLabel = locLabels[resourceArcToLabel]
+                    toLabel = cast(str, locLabels[resourceArcToLabel])
                     if resourceArcUse == "prohibited" and toLabel is not None:
                         self.remoteResourceLocElements.add(toLabel)
                     else:
+                        # Temporarily handle error Item "str" of "Optional[str]" has no attribute "get"  [union-attr]
+                        xlinkHrefToLabel = cast(dict[Any, Any], toLabel)
+
                         self.modelXbrl.error("xbrl.5.2.2.3:labelArcRemoteResource",
                             _("Unprohibited labelArc in extended link %(linkrole)s has illegal remote resource loc labeled %(xlinkLabel)s href %(xlinkHref)s"),
                             modelObject=arcElt,
                             linkrole=modelLink.role,
                             xlinkLabel=resourceArcToLabel,
-                            xlinkHref=toLabel.get("{http://www.w3.org/1999/xlink}href"))
+                            xlinkHref=xlinkHrefToLabel.get("{http://www.w3.org/1999/xlink}href"))
                 elif resourceArcToLabel in resourceLabels:
                     toResource = resourceLabels[resourceArcToLabel]
                     if resourceArcUse == XbrlConst.elementLabel:
@@ -693,6 +694,8 @@ class ValidateXbrl:
 
     def checkFacts(self, facts: list[ModelInlineFact], inTuple: dict[Any, Any] | None = None) -> None:  # do in document order
         for f in facts:
+            # f.xValue is interpreted as None below so we need to handle that
+            f.xValue: Any # type: ignore[misc]
             concept = f.concept
             if concept is not None:
                 if concept.isNumeric:
@@ -929,7 +932,7 @@ class ValidateXbrl:
                     _("Inline XBRL at order %(order)s has non-matching content %(value)s"),
                     modelObject=(prevTupleFact, f), order=f.order, value=prevTupleFact.textValue.strip())
 
-    def checkContexts(self, contexts: list[ModelContext]) -> None:
+    def checkContexts(self, contexts: ValuesView[ModelContext]) -> None:
         for cntx in contexts:
             if cntx.isStartEndPeriod:
                 try: # if no datetime value would have been a schema error at loading time
@@ -974,11 +977,11 @@ class ValidateXbrl:
                                     modelObject=typedMember, dim=typedMember.qname, contextID=cntx.id, value=typedMember.xValue[:200])
 
 
-    def checkContextsDimensions(self, contexts) -> None:
+    def checkContextsDimensions(self, contexts: ValuesView[ModelContext]) -> None:
         for cntx in contexts:
             ValidateXbrlDimensions.checkContext(self,cntx)
 
-    def checkUnits(self, units) -> None:
+    def checkUnits(self, units: ValuesView[ModelUnit]) -> None:
         for unit in units:
             mulDivMeasures = unit.measures
             if mulDivMeasures:
@@ -995,9 +998,7 @@ class ValidateXbrl:
                             _("Unit %(unitID)s numerator measure: %(measure)s also appears as denominator measure"),
                             modelObject=unit, unitID=unit.id, measure=numeratorMeasure)
 
-
-
-    def fwdCycle(self, relsSet: ModelRelationshipSet, rels: list[ModelRelationship], noUndirected: bool, fromConcepts: set[ModelConceptName], cycleType: str = "directed", revCycleRel: Any | None = None) -> list[ModelRelationship | str] | None:
+    def fwdCycle(self, relsSet: ModelRelationshipSet, rels: list[ModelRelationship], noUndirected: bool, fromConcepts: set[ModelConcept | ModelCustomFunctionSignature | ModelInlineFact], cycleType: str = "directed", revCycleRel: ModelRelationship | None = None) -> list[str | ModelRelationship] | None:
         for rel in rels:
             if revCycleRel is not None and rel.isIdenticalTo(revCycleRel):
                 continue # don't double back on self in undirected testing
@@ -1019,8 +1020,7 @@ class ValidateXbrl:
                     return foundCycle
         return None
 
-    # Todo
-    def revCycle(self, relsSet: ModelRelationshipSet, toConcept: ModelConcept, turnbackRel: ModelRelationship, fromConcepts: set[ModelConcept | ModelCustomFunctionSignature]) :
+    def revCycle(self, relsSet: ModelRelationshipSet, toConcept: ModelConcept, turnbackRel: ModelRelationship, fromConcepts: set[ModelConcept | ModelCustomFunctionSignature | ModelInlineFact]) -> list[str | ModelRelationship] | None:
         for rel in relsSet.toModelObject(toConcept):
             if not rel.isIdenticalTo(turnbackRel):
                 relFrom = rel.fromModelObject
@@ -1030,13 +1030,11 @@ class ValidateXbrl:
                 foundCycle = self.revCycle(relsSet, relFrom, turnbackRel, fromConcepts)
                 if foundCycle is not None:
                     foundCycle.append(rel)
-                    print(f"found cycle: {foundCycle}")
                     return foundCycle
                 fwdRels = relsSet.fromModelObject(relFrom)
                 foundCycle = self.fwdCycle(relsSet, fwdRels, True, fromConcepts, cycleType="undirected", revCycleRel=rel)
                 if foundCycle is not None:
                     foundCycle.append(rel)
-                    print(f"found cycle 2: {foundCycle}")
                     return foundCycle
                 fromConcepts.discard(relFrom)
         return None
