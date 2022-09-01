@@ -22,6 +22,7 @@ from arelle.ValidateXbrlDimensions import isFactDimensionallyValid
 
 if TYPE_CHECKING:
     from arelle.ModelRelationshipSet import ModelRelationshipSet as ModelRelationshipSetClass
+    from arelle.ModelInstanceObject import ModelContext
 
 
 ModelFact = None
@@ -300,7 +301,7 @@ class ModelXbrl:
         self.facts = []
         self.factsInInstance = set()
         self.undefinedFacts = [] # elements presumed to be facts but not defined
-        self.contexts = {}
+        self.contexts: dict[Any, Any] = {}
         self.units = {}
         self.modelObjects = []
         self.qnameParameters = {}
