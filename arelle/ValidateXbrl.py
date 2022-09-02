@@ -63,8 +63,8 @@ class ValidateXbrl:
     authority: str | None
     authParam: dict[str, Any]
     consolidated: bool
-    domainMembers: set[Any]
-    extensionImportedUrls: set[Any]
+    domainMembers: set[ModelConcept]
+    extensionImportedUrls: set[str]
     hasExtensionCal: bool
     hasExtensionDef: bool
     hasExtensionLbl: bool
