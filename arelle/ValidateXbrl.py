@@ -204,10 +204,10 @@ class ValidateXbrl:
                     toConcept = modelRel.toModelObject
                     if fromConcept is not None and toConcept is not None:
                         if weight == 0:
-                            modelXbrl.error(codes="xbrl.5.2.5.2.1:zeroWeight",
-                                msg=_("Calculation relationship has zero weight from %(source)s to %(target)s in link role %(linkrole)s"),
+                            modelXbrl.error("xbrl.5.2.5.2.1:zeroWeight", # type: ignore[func-returns-value]
+                                _("Calculation relationship has zero weight from %(source)s to %(target)s in link role %(linkrole)s"),
                                 modelObject=modelRel,
-                                source=fromConcept.qname, target=toConcept.qname, linkrole=ELR)
+                                source=fromConcept.qname, target=toConcept.qname, linkrole=ELR),
                         fromBalance = fromConcept.balance
                         toBalance = toConcept.balance
                         if fromBalance and toBalance:
@@ -262,8 +262,8 @@ class ValidateXbrl:
                         toBalance = toConcept.balance
                         if fromBalance and toBalance:
                             if fromBalance and toBalance and fromBalance != toBalance:
-                                modelXbrl.error("xbrl.5.2.6.2.2:essenceAliasBalance",
-                                    _("Essence-alias relationship from %(source)s to %(target)s in link role %(linkrole)s has different balances"),
+                                modelXbrl.error("xbrl.5.2.6.2.2:essenceAliasBalance",  # type: ignore[func-returns-value]
+                                    _("Essence-alias relationship from %(source)s to %(target)s in link role %(linkrole)s has different balances")).format(
                                     modelObject=modelRel,
                                     source=fromConcept.qname, target=toConcept.qname, linkrole=ELR)
             elif modelXbrl.hasXDT and arcrole.startswith(XbrlConst.dimStartsWith):
