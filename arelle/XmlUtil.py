@@ -35,7 +35,7 @@ def xmlns(element, prefix) -> Any:
         return xml
     return ns # return results of get (which may be no namespace
 
-def xmlnsprefix(element, ns) -> Any | None:
+def xmlnsprefix(element, ns) -> Any:
     if ns is None:
         return None
     if ns == xml: # never declared explicitly
