@@ -182,9 +182,9 @@ class ValidateXbrl:
                                 break
 
                         reversed_list = cast(list[ModelRelationship], reversed(cycleFound[1:pathEndsAt]))
-                        for rel in reversed_list:
-                            path = str(loopedModelObject.qname) + " " + " - ".join(
-                                "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname))
+                        path = str(loopedModelObject.qname) + " " + " - ".join(
+                            "{0}:{1} {2}".format(rel.modelDocument.basename, rel.sourceline, rel.toModelObject.qname)
+                            for rel in reversed_list)
 
                         modelXbrl.error(cast(str, specSect),
                             _("Relationships have a %(cycle)s cycle in arcrole %(arcrole)s \nlink role %(linkrole)s \nlink %(linkname)s, \narc %(arcname)s, \npath %(path)s"),
@@ -859,9 +859,9 @@ class ValidateXbrl:
                     # custom attributes may be allowed by anyAttribute but not by 2.1
                     for attrQname, attrValue in XbrlUtil.attributes(self.modelXbrl, f):
                         if attrQname.namespaceURI in (XbrlConst.xbrli, XbrlConst.link, XbrlConst.xlink, XbrlConst.xl):
-                            self.modelXbrl.error("xbrl.4.9:tupleAttribute", # type: ignore[func-returns-value]
+                            self.modelXbrl.error("xbrl.4.9:tupleAttribute",
                                 _("Fact %(fact)s is a tuple and must not have attribute in this namespace %(attribute)s"),
-                                modelObject=f, fact=f.qname, attribute=attrQname),
+                                modelObject=f, fact=f.qname, attribute=attrQname)
                 else:
                     self.modelXbrl.error("xbrl.4.6:notItemOrTuple",
                         _("Fact %(fact)s must be an item or tuple"),
@@ -879,8 +879,8 @@ class ValidateXbrl:
                     self.checkIxTupleContent(f, inTuple)
             if f.modelTupleFacts:
                 self.checkFacts(f.modelTupleFacts, inTuple=inTuple)
-            assert isinstance(f, ModelInlineFact)
-            if (f.isTuple or f.tupleID) and inTuple is not None:
+            if isinstance(f, ModelInlineFact) and (f.isTuple or f.tupleID):
+                assert inTuple is not None
                 del inTuple[f.qname]
 
             # uncomment if anybody uses this
