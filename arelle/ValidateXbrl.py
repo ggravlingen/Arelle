@@ -83,7 +83,7 @@ class ValidateXbrl:
     validateESEFplugin: bool
     priorFormulaOptionsRunIDs: str | None
     primaryItems: set[Any]
-    remoteResourceLocElements: set[str]
+    remoteResourceLocElements: set[ModelObject]
 
     def __init__(self, testModelXbrl: ModelXbrl) -> None:
         self.testModelXbrl = testModelXbrl
@@ -659,20 +659,17 @@ class ValidateXbrl:
             for resourceArcTo in resourceArcTos:
                 resourceArcToLabel, resourceArcUse, arcElt = resourceArcTo
                 if resourceArcToLabel in locLabels:
-                    toLabel = cast(str, locLabels[resourceArcToLabel])
-                    assert toLabel is not None
-                    if resourceArcUse == "prohibited":
-                        self.remoteResourceLocElements.add(toLabel)
-                    else:
-                        # Temporarily handle error Item "str" of "Optional[str]" has no attribute "get"  [union-attr]
-                        xlinkHrefToLabel = cast(dict[Any, Any], toLabel)
+                    newToLabel = locLabels[resourceArcToLabel]
 
+                    if resourceArcUse == "prohibited":
+                        self.remoteResourceLocElements.add(newToLabel)
+                    else:
                         self.modelXbrl.error("xbrl.5.2.2.3:labelArcRemoteResource",
                             _("Unprohibited labelArc in extended link %(linkrole)s has illegal remote resource loc labeled %(xlinkLabel)s href %(xlinkHref)s"),
                             modelObject=arcElt,
                             linkrole=modelLink.role,
                             xlinkLabel=resourceArcToLabel,
-                            xlinkHref=xlinkHrefToLabel.get("{http://www.w3.org/1999/xlink}href"))
+                            xlinkHref=newToLabel.get("{http://www.w3.org/1999/xlink}href"))
                 elif resourceArcToLabel in resourceLabels:
                     toResource = resourceLabels[resourceArcToLabel]
                     if resourceArcUse == XbrlConst.elementLabel:
