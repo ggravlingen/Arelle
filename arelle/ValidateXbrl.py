@@ -657,14 +657,12 @@ class ValidateXbrl:
             for resourceArcTo in resourceArcTos:
                 resourceArcToLabel, resourceArcUse, arcElt = resourceArcTo
                 if resourceArcToLabel in locLabels:
-                    print(toLabel)
                     toLabel = cast(str, locLabels[resourceArcToLabel])
                     assert toLabel is not None
                     if resourceArcUse == "prohibited":
                         self.remoteResourceLocElements.add(toLabel)
                     else:
                         # Temporarily handle error Item "str" of "Optional[str]" has no attribute "get"  [union-attr]
-                        print(toLabel)
                         xlinkHrefToLabel = cast(dict[Any, Any], toLabel)
 
                         self.modelXbrl.error("xbrl.5.2.2.3:labelArcRemoteResource",
