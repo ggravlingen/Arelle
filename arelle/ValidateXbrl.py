@@ -64,6 +64,7 @@ class ValidateXbrl:
     authParam: dict[str, Any]
     consolidated: bool
     domainMembers: set[ModelConcept]
+    DTSreferenceResourceIDs: dict[str, Any]
     extensionImportedUrls: set[str]
     genericArcArcroles: set[str]
     hasExtensionCal: bool
@@ -274,7 +275,8 @@ class ValidateXbrl:
 
         # instance checks
         modelXbrl.modelManager.showStatus(_("validating instance"))
-        if modelXbrl.modelDocument is not None and modelXbrl.modelDocument.type in (ModelDocumentType.INSTANCE, ModelDocumentType.INLINEXBRL, ModelDocumentType.INLINEXBRLDOCUMENTSET):
+        assert modelXbrl.modelDocument is not None
+        if modelXbrl.modelDocument.type in (ModelDocumentType.INSTANCE, ModelDocumentType.INLINEXBRL, ModelDocumentType.INLINEXBRLDOCUMENTSET):
             self.checkFacts(modelXbrl.facts)
             self.checkContexts(self.modelXbrl.contexts.values())
             self.checkUnits(self.modelXbrl.units.values())
@@ -406,7 +408,7 @@ class ValidateXbrl:
         modelXbrl.profileStat() # reset after plugins
 
         modelXbrl.modelManager.showStatus(_("validating DTS"))
-        self.DTSreferenceResourceIDs: dict[str, Any] = {}
+        self.DTSreferenceResourceIDs = {}
         checkedModelDocuments: set[ModelDocument] = set()
         assert modelXbrl.modelDocument is not None
         ValidateXbrlDTS.checkDTS(self, modelXbrl.modelDocument, checkedModelDocuments)
