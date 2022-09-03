@@ -657,12 +657,14 @@ class ValidateXbrl:
             for resourceArcTo in resourceArcTos:
                 resourceArcToLabel, resourceArcUse, arcElt = resourceArcTo
                 if resourceArcToLabel in locLabels:
+                    print(toLabel)
                     toLabel = cast(str, locLabels[resourceArcToLabel])
                     assert toLabel is not None
                     if resourceArcUse == "prohibited":
                         self.remoteResourceLocElements.add(toLabel)
                     else:
                         # Temporarily handle error Item "str" of "Optional[str]" has no attribute "get"  [union-attr]
+                        print(toLabel)
                         xlinkHrefToLabel = cast(dict[Any, Any], toLabel)
 
                         self.modelXbrl.error("xbrl.5.2.2.3:labelArcRemoteResource",
@@ -1039,21 +1041,21 @@ class ValidateXbrl:
         if topLevel:
             if element is None:
                 return  # nothing to check
-
-        assert element is not None
-
-        if element.namespaceURI == XbrlConst.xbrli:
-            self.modelXbrl.error("xbrl.{0}:{1}XbrliElement".format(sect,name),
-                _("Context %(contextID)s %(contextElement)s cannot have xbrli element %(elementName)s"),
-                modelObject=element, contextID=contextId, contextElement=name, elementName=element.prefixedName,
-                messageCodes=("xbrl.4.7.3.2:segmentXbrliElement", "xbrl.4.7.4:scenarioXbrliElement"))
         else:
-            concept = self.modelXbrl.qnameConcepts.get(element.qname)
-            if concept is not None and (concept.isItem or concept.isTuple):
-                self.modelXbrl.error("xbrl.{0}:{1}ItemOrTuple".format(sect,name),
-                    _("Context %(contextID)s %(contextElement)s cannot have item or tuple element %(elementName)s"),
+            assert element is not None
+            if element.namespaceURI == XbrlConst.xbrli:
+                self.modelXbrl.error("xbrl.{0}:{1}XbrliElement".format(sect,name),
+                    _("Context %(contextID)s %(contextElement)s cannot have xbrli element %(elementName)s"),
                     modelObject=element, contextID=contextId, contextElement=name, elementName=element.prefixedName,
-                    messageCodes=("xbrl.4.7.3.2:segmentItemOrTuple", "xbrl.4.7.4:scenarioItemOrTuple"))
+                    messageCodes=("xbrl.4.7.3.2:segmentXbrliElement", "xbrl.4.7.4:scenarioXbrliElement"))
+            else:
+                concept = self.modelXbrl.qnameConcepts.get(element.qname)
+                if concept is not None and (concept.isItem or concept.isTuple):
+                    self.modelXbrl.error("xbrl.{0}:{1}ItemOrTuple".format(sect,name),
+                        _("Context %(contextID)s %(contextElement)s cannot have item or tuple element %(elementName)s"),
+                        modelObject=element, contextID=contextId, contextElement=name, elementName=element.prefixedName,
+                        messageCodes=("xbrl.4.7.3.2:segmentItemOrTuple", "xbrl.4.7.4:scenarioItemOrTuple"))
+
         hasChild = False
         for child in element.iterchildren():
             if isinstance(child,ModelObject):
