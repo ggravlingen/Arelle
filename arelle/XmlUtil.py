@@ -377,7 +377,7 @@ def childrenAttrs(element, childNamespaceURI, childLocalNames, attrLocalName):
     childrenAttrs.sort()
     return childrenAttrs
 
-def descendant(element, descendantNamespaceURI, descendantLocalNames, attrName=None, attrValue=None) -> Any | None:
+def descendant(element, descendantNamespaceURI, descendantLocalNames, attrName=None, attrValue=None) -> Any:
     d = descendants(element, descendantNamespaceURI, descendantLocalNames, attrName, attrValue, breakOnFirst=True)
     if d:
         return d[0]
