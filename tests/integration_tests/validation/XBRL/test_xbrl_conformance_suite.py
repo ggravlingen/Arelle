@@ -2,6 +2,7 @@ import os
 import pytest
 from tests.integration_tests.validation.validation_util import get_test_data
 
+
 CONFORMANCE_SUITE = 'tests/resources/conformance_suites/XBRL-CONF-2014-12-10.zip'
 ARGS = [
     '--file', os.path.abspath(os.path.join(CONFORMANCE_SUITE, 'xbrl.xml')),
