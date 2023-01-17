@@ -4,7 +4,7 @@ See COPYRIGHT.md for copyright information.
 from __future__ import annotations
 import os, io
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from lxml import etree
 from xml.sax import SAXParseException
 from arelle import (PackageManager, XbrlConst, XmlUtil, UrlUtil, ValidateFilingText,
@@ -22,9 +22,28 @@ from arelle.XhtmlValidate import ixMsgCode
 from arelle.XmlValidate import VALID, validate as xmlValidate, lxmlSchemaValidate
 from arelle.ModelTestcaseObject import ModelTestcaseVariation
 
+if TYPE_CHECKING:
+    from arelle.typing import TypeGetText
+    from arelle.ModelXbrl import ModelXbrl
+
+
+_: TypeGetText
+
 creationSoftwareNames = None
 
-def load(modelXbrl, uri, base=None, referringElement=None, isEntry=False, isDiscovered=False, isIncluded=None, isSupplemental=False, namespace=None, reloadCache=False, **kwargs) -> ModelDocument | None:
+def load(
+    modelXbrl: ModelXbrl,
+    uri: str | list[str] | FileSource | None,
+    base: str | None = None,
+    referringElement: ModelObject | None = None,
+    isEntry: bool = False,
+    isDiscovered: bool = False,
+    isIncluded: bool = False,
+    isSupplemental: bool = False,
+    namespace: str | None  = None,
+    reloadCache: bool = False,
+    **kwargs: Any,
+) -> ModelDocument | None:
     """Returns a new modelDocument, performing DTS discovery for instance, inline XBRL, schema,
     linkbase, and versioning report entry urls.
 
@@ -217,7 +236,7 @@ def load(modelXbrl, uri, base=None, referringElement=None, isEntry=False, isDisc
     modelXbrl.modelManager.showStatus(_("loading {0}").format(uri))
     modelDocument = None
 
-    rootNode = xmlDocument.getroot()
+    rootNode: ModelObject = xmlDocument.getroot()
     if rootNode is not None:
         ln = rootNode.localName
         ns = rootNode.namespaceURI
@@ -374,7 +393,13 @@ def load(modelXbrl, uri, base=None, referringElement=None, isEntry=False, isDisc
 
     return modelDocument
 
-def loadSchemalocatedSchema(modelXbrl, element, relativeUrl, namespace, baseUrl):
+def loadSchemalocatedSchema(
+    modelXbrl: ModelXbrl,
+    element: ModelObject,
+    relativeUrl: str,
+    namespace: str,
+    baseUrl: str,
+) -> ModelDocument | None:
     if namespace == XbrlConst.xhtml: # block loading xhtml as a schema (e.g., inline which is xsd validated instead)
         return None
     #importSchemaLocation = modelXbrl.modelManager.cntlr.webCache.normalizeUrl(relativeUrl, baseUrl)
@@ -390,7 +415,18 @@ def loadSchemalocatedSchema(modelXbrl, element, relativeUrl, namespace, baseUrl)
             doc.inDTS = False
     return doc
 
-def create(modelXbrl, type, uri, schemaRefs=None, isEntry=False, initialXml=None, initialComment=None, base=None, discover=True, documentEncoding="utf-8") -> ModelDocument:
+def create(
+    modelXbrl: ModelXbrl,
+    type: int,
+    uri: str,
+    schemaRefs: list[str] | None = None,
+    isEntry: bool = False,
+    initialXml: str | None = None,
+    initialComment: str | None = None,
+    base: ModelObject | None = None,
+    discover: bool = True,
+    documentEncoding: str = "utf-8",
+) -> ModelDocument:
     """Returns a new modelDocument, created from scratch, with any necessary header elements
 
     (such as the schema, instance, or RSS feed top level elements)
@@ -662,10 +698,19 @@ class ModelDocument:
         Qualifies as a discovered schema per XBRL 2.1
     """
 
+    basename: str
     documentEncoding: str
+    targetNamespace: str | None
     xmlRootElement: Any
 
-    def __init__(self, modelXbrl, type, uri, filepath, xmlDocument):
+    def __init__(
+        self,
+        modelXbrl: ModelXbrl,
+        type: int,
+        uri: str,
+        filepath: str,
+        xmlDocument: ModelObject,
+    ):
         self.modelXbrl = modelXbrl
         self.skipDTS = modelXbrl.skipDTS
         self.type = type
@@ -677,7 +722,7 @@ class ModelDocument:
         self.objectIndex = len(modelXbrl.modelObjects)
         modelXbrl.modelObjects.append(self)
         self.referencesDocument = {}
-        self.idObjects = {}  # by id
+        self.idObjects: dict[str, ModelObject] = {}  # by id
         self.hrefObjects = []
         self.schemaLocationElements = set()
         self.referencedNamespaces = set()
@@ -736,13 +781,13 @@ class ModelDocument:
     def __repr__(self):
         return ("{0}[{1}]{2})".format(self.__class__.__name__, self.objectId(),self.propertyView))
 
-    def setTitle(self, cntlr):
+    def setTitle(self, cntlr) -> None:
         try:
             cntlr.parent.wm_title(_("arelle - {0}").format(self.basename))
         except AttributeError:
             pass
 
-    def setTitleInBackground(self):
+    def setTitleInBackground(self) -> None:
         try:
             cntlr = self.modelXbrl.modelManager.cntlr
             uiThreadQueue = cntlr.uiThreadQueue
@@ -1293,7 +1338,7 @@ class ModelDocument:
     def inlineXbrlDiscover(self, htmlElement):
         ixNS = None
         htmlBase = None
-        conflictingNSelts = []
+        conflictingNSelts: list[inlineElement] = []
         # find namespace, only 1 namespace
         for inlineElement in htmlElement.iterdescendants():
             if isinstance(inlineElement,ModelObject) and inlineElement.namespaceURI in XbrlConst.ixbrlAll:
@@ -1434,7 +1479,7 @@ class ModelDocument:
 
 # inline document set level compilation
 # modelIxdsDocument is an inlineDocumentSet or entry inline document (if not a document set)
-def inlineIxdsDiscover(modelXbrl, modelIxdsDocument):
+def inlineIxdsDiscover(modelXbrl: ModelXbrl, modelIxdsDocument):
     # extract for a single target document
     ixdsTarget = getattr(modelXbrl, "ixdsTarget", None)
     # compile inline result set
@@ -1459,13 +1504,14 @@ def inlineIxdsDiscover(modelXbrl, modelIxdsDocument):
     targetReferenceAttrElts = defaultdict(dict) # target dict by attrname of elts
     targetReferenceAttrVals = defaultdict(dict) # target dict by attrname of attr value
     targetReferencePrefixNs = defaultdict(dict) # target dict by prefix, namespace
-    targetReferencesIDs = {} # target dict by id of reference elts
+    targetReferencesIDs: dict[str | None, Any] = {} # target dict by id of reference elts
     modelInlineFootnotesById = {} # inline 1.1 ixRelationships and ixFootnotes
     modelXbrl.targetRoleRefs = {} # roleRefs used by selected target
     modelXbrl.targetArcroleRefs = {}  # arcroleRefs used by selected target
     modelXbrl.targetRelationships = set() # relationship elements used by selected target
     hasResources = hasHeader = False
     for htmlElement in modelXbrl.ixdsHtmlElements:
+        print(type(htmlElement))
         mdlDoc = htmlElement.modelDocument
         ixNStag = mdlDoc.ixNStag
         for modelInlineTuple in htmlElement.iterdescendants(tag=ixNStag + "tuple"):
@@ -1829,7 +1875,7 @@ def inlineIxdsDiscover(modelXbrl, modelIxdsDocument):
     del targetReferenceAttrElts, targetReferencePrefixNs, targetReferenceAttrVals, factTargetIDs
 
 
-    footnoteLinkPrototypes = {}
+    footnoteLinkPrototypes: dict[str, Any] = {}
     # inline 1.1 link prototypes, one per link role (so only one extended link element is produced per link role)
     linkPrototypes = {}
     # inline 1.1 ixRelationships and ixFootnotes

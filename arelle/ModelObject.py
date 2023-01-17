@@ -110,10 +110,12 @@ class ModelObject(etree.ElementBase):
     _namespaceURI: str | None
     _hashSEqual: int
     _hashXpathEqual: int
+    footnoteID: str
     sValue: TypeSValue
     xAttributes: dict[str, ModelAttribute]
     xValue: TypeXValue
     xValid: int
+    tupleID: str
     xlinkLabel: str
 
     def _init(self) -> None:
@@ -145,7 +147,7 @@ class ModelObject(etree.ElementBase):
     @property
     def modelXbrl(self) -> ModelXbrl | None:
         try:
-            return cast("ModelXbrl", self.modelDocument.modelXbrl)
+            return self.modelDocument.modelXbrl
         except AttributeError:
             return None
 
@@ -346,7 +348,7 @@ class ModelObject(etree.ElementBase):
             if id is None:
                 return cast(ModelObject, doc)
             elif id in doc.idObjects:
-                return cast(ModelObject, doc.idObjects[id])
+                return doc.idObjects[id]
             else:
                 xpointedElement = XmlUtil.xpointerElement(doc,id)
                 # find element

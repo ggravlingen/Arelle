@@ -81,10 +81,10 @@ def load(modelManager: ModelManager, url: str, nextaction: str | None = None, ba
         modelXbrl.fileSource = FileSource.FileSource(url, modelManager.cntlr)
         modelXbrl.closeFileSource= True
     if kwargs.get("isLoadable",True): # used for test cases to block taxonomy packages without discoverable contents
-        modelXbrl.modelDocument = ModelDocument.load(modelXbrl, url, base, isEntry=True, **kwargs)
+        modelXbrl.modelDocument = ModelDocument.load(modelXbrl, url, base, isEntry=True, **kwargs)  # type: ignore[arg-type]
         if supplementalUrls:
             for url in supplementalUrls:
-                ModelDocument.load(modelXbrl, url, base, isEntry=False, isDiscovered=True, **kwargs)
+                ModelDocument.load(modelXbrl, url, base, isEntry=False, isDiscovered=True, **kwargs)  # type: ignore[arg-type]
         if hasattr(modelXbrl, "entryLoadingUrl"):
             del modelXbrl.entryLoadingUrl
         loadSchemalocatedSchemas(modelXbrl)
@@ -282,7 +282,7 @@ class ModelXbrl:
     entryLoadingUrl: str
     fileSource: FileSourceClass
     ixdsDocUrls: list[str]
-    ixdsHtmlElements: list[str]
+    ixdsHtmlElements: list[ModelObject]
     isDimensionsValidated: bool
     locale: LocaleDict | None
     modelDocument: ModelDocumentClass | None
