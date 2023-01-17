@@ -6,7 +6,8 @@ See COPYRIGHT.md for copyright information.
 from __future__ import annotations
 
 from arelle import PythonUtil # define 2.x or 3.x string types
-import os, sys, subprocess, pickle, time, locale, re, fnmatch, platform
+import os, sys, subprocess, pickle, time, locale, fnmatch, platform
+import regex as re
 
 if sys.platform == 'win32' and getattr(sys, 'frozen', False):
     # need the .dll directory in path to be able to access Tk and Tcl DLLs efore importinng Tk, etc.
@@ -26,8 +27,7 @@ import tkinter.tix
 import tkinter.filedialog
 import tkinter.messagebox, traceback
 import tkinter.simpledialog
-from arelle.FileSource import saveFile as writeToFile
-from arelle.Locale import format_string
+from arelle.Locale import format_string, setApplicationLocale
 from arelle.CntlrWinTooltip import ToolTip
 from arelle import XbrlConst
 from arelle.PluginManager import pluginClassMethods
@@ -1605,6 +1605,7 @@ def main():
         restartMain = False
         try:
             application = Tk()
+            setApplicationLocale()
             cntlrWinMain = CntlrWinMain(application)
             application.protocol("WM_DELETE_WINDOW", cntlrWinMain.quit)
             if sys.platform == "darwin" and not __file__.endswith(".app/Contents/MacOS/arelleGUI"):

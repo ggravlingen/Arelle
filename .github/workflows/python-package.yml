@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       python_version:
-        default: '3.10'
+        default: '3.11'
         description: 'Python version to use'
         required: true
         type: string
@@ -14,11 +14,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout arelle
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.3.0
         with:
           fetch-depth: 0
       - name: Install Python
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v4.5.0
         with:
           cache: 'pip'
           check-latest: true
@@ -29,13 +29,13 @@ jobs:
           pip install build
           python -m build
       - name: Upload tar artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: arelle.tar.gz
           if-no-files-found: error
           path: dist/*.tar.gz
       - name: Upload wheel artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: arelle.whl
           if-no-files-found: error
@@ -50,7 +50,7 @@ jobs:
       - name: Install twine
         run: pip install -U twine
       - name: Download artifacts
-        uses: actions/download-artifact@v3.0.1
+        uses: actions/download-artifact@v3.0.2
       - name: Publish package on release
         env:
           TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}

@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       node_version:
-        default: '16'
+        default: '19'
         description: 'Node.js version to use'
         required: true
         type: string
@@ -33,11 +33,11 @@ jobs:
 
     steps:
       - name: Checkout arelle
-        uses: actions/checkout@v3.1.0
+        uses: actions/checkout@v3.3.0
         with:
           fetch-depth: 0
       - name: Install Python
-        uses: actions/setup-python@v4.3.0
+        uses: actions/setup-python@v4.5.0
         with:
           cache: 'pip'
           check-latest: true
@@ -45,13 +45,13 @@ jobs:
       - run: |
           pip install --upgrade pip setuptools wheel
           pip install -r requirements-build.txt
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v3.3.0
         with:
           repository: Arelle/EdgarRenderer
           path: arelle/plugin/EdgarRenderer
           ref: ${{ inputs.edgar_renderer_ref }}
       - run: rm -rf arelle/plugin/EdgarRenderer/.git
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v3.3.0
         with:
           repository: xbrlus/xule
           path: tmp
@@ -61,12 +61,12 @@ jobs:
           rm -rf tmp/plugin/validate
           mv tmp/plugin/* arelle/plugin/
           rm -rf tmp
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v3.3.0
         with:
           repository: Workiva/ixbrl-viewer
           path: tmp/ixbrl-viewer
           ref: ${{ inputs.ixbrl_viewer_ref }}
-      - uses: actions/setup-node@v3.5.1
+      - uses: actions/setup-node@v3.6.0
         with:
           node-version: ${{ inputs.node_version }}
       - run: |
@@ -207,7 +207,7 @@ jobs:
           hdiutil detach "${DEVICE}"
           hdiutil convert dist_dmg/arelle_tmp.dmg -format UDZO -imagekey zlib-level=9 -o ${{ env.DMG_BUILD_ARTIFACT_PATH }}
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3.1.1
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: macos distribution
           if-no-files-found: error

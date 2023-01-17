@@ -12,7 +12,7 @@ on:
         required: false
         type: string
       node_version:
-        default: '16'
+        default: '19'
         description: 'Node.js version to use'
         required: true
         type: string
@@ -35,11 +35,11 @@ jobs:
 
     steps:
     - name: Checkout arelle
-      uses: actions/checkout@v3.1.0
+      uses: actions/checkout@v3.3.0
       with:
         fetch-depth: 0
     - name: Checkout EdgarRenderer
-      uses: actions/checkout@v3.1.0
+      uses: actions/checkout@v3.3.0
       with:
         repository: Arelle/EdgarRenderer
         path: arelle/plugin/EdgarRenderer
@@ -47,7 +47,7 @@ jobs:
     - shell: cmd
       run: rmdir /s /q arelle\plugin\EdgarRenderer\.git
     - name: Checkout xule
-      uses: actions/checkout@v3.1.0
+      uses: actions/checkout@v3.3.0
       with:
         repository: xbrlus/xule
         path: xule
@@ -60,13 +60,13 @@ jobs:
     - shell: cmd
       run: rmdir /s /q xule
     - name: Checkout ixbrl-viewer
-      uses: actions/checkout@v3.1.0
+      uses: actions/checkout@v3.3.0
       with:
         repository: Workiva/ixbrl-viewer
         path: ixbrl-viewer
         ref: ${{ inputs.ixbrl_viewer_ref }}
     - name: Set up Node JS
-      uses: actions/setup-node@v3.5.1
+      uses: actions/setup-node@v3.6.0
       with:
         node-version: ${{ inputs.node_version }}
     - name: Build ixbrl-viewer
@@ -77,7 +77,7 @@ jobs:
     - shell: cmd
       run: move ixbrl-viewer\iXBRLViewerPlugin arelle\plugin\iXBRLViewerPlugin && rmdir /s /q ixbrl-viewer
     - name: Set up Python ${{ inputs.python_version }}
-      uses: actions/setup-python@v4.3.0
+      uses: actions/setup-python@v4.5.0
       with:
         cache: 'pip'
         check-latest: true
@@ -113,13 +113,13 @@ jobs:
       working-directory: ${{ env.BUILD_PATH }}
       run: 7z a -tzip ..\..\${{ env.ZIP_BUILD_ARTIFACT_PATH }} *
     - name: Upload installer artifact
-      uses: actions/upload-artifact@v3.1.1
+      uses: actions/upload-artifact@v3.1.2
       with:
         name: windows installer distribution
         if-no-files-found: error
         path: ${{ env.EXE_BUILD_ARTIFACT_PATH }}
     - name: Upload zip artifact
-      uses: actions/upload-artifact@v3.1.1
+      uses: actions/upload-artifact@v3.1.2
       with:
         name: windows zip distribution
         if-no-files-found: error
